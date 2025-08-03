@@ -1,0 +1,40 @@
+{
+  "name": "mindmapai",
+  "version": "1.0.0",
+  "description": "Aplicativo web para geração de mapas mentais a partir de arquivos PDF usando Google Gemini AI",
+  "main": "index.html",
+  "scripts": {
+    "start": "python -m http.server 8000",
+    "dev": "python -m http.server 8000",
+    "serve": "python -m http.server 8000"
+  },
+  "keywords": [
+    "mindmap",
+    "pdf",
+    "ai",
+    "gemini",
+    "drawflow",
+    "javascript",
+    "web-app"
+  ],
+  "author": "MindMapAI Team",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/allprado/MindMapAI2.git"
+  },
+  "bugs": {
+    "url": "https://github.com/allprado/MindMapAI2/issues"
+  },
+  "homepage": "https://github.com/allprado/MindMapAI2#readme",
+  "dependencies": {},
+  "devDependencies": {},
+  "engines": {
+    "node": ">=14.0.0"
+  },
+  "browserslist": [
+    "last 2 versions",
+    "> 1%",
+    "not dead"
+  ]
+}
