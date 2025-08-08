@@ -40,7 +40,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { content } = await request.json();
+    const { content, expandNode, parentNodeId, newMindMap } = await request.json();
+
+    console.log('API chamada com:', { content, expandNode, parentNodeId, newMindMap });
 
     if (!content || typeof content !== 'string') {
       return NextResponse.json(
@@ -55,15 +57,69 @@ export async function POST(request: NextRequest) {
       ? content.substring(0, maxLength) + '...' 
       : content;
 
-    // Detectar se o texto já está em formato de tópicos
-    const isTopicFormat = detectTopicFormat(truncatedContent);
-
     const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash-exp' });
 
     let prompt: string;
     
-    if (isTopicFormat) {
-      prompt = `O texto fornecido já está em formato de tópicos hierárquicos. Converta EXATAMENTE esta estrutura em um mapa mental, preservando a hierarquia original dos tópicos, o conteúdo exato de cada tópico, a estrutura de níveis, e os títulos e subtítulos como estão.
+    if (expandNode && parentNodeId) {
+      // Prompt para expandir um nó específico
+      prompt = `Expanda o seguinte tópico criando 3-5 subnós detalhados e informativos:
+
+Tópico para expandir: ${truncatedContent}
+
+Instruções específicas:
+1. Crie APENAS os novos nós filhos (level atual + 1)
+2. Cada subnó deve ter um label conciso (2-3 palavras) e uma description educativa
+3. Use cores apropriadas: level 2 #10b981, level 3 #f59e0b, level 4 #ef4444, level 5+ #ec4899
+4. Os IDs dos novos nós devem ser únicos (use timestamp + índice)
+5. Cada nó filho deve ter parent: "${parentNodeId}"
+6. Use posições temporárias (x: 0, y: 0) pois serão recalculadas
+
+Retorne APENAS um JSON válido com array "nodes" contendo SOMENTE os novos nós filhos.
+
+Exemplo de estrutura:
+{
+  "nodes": [
+    {
+      "id": "exp_1",
+      "label": "Subnó 1",
+      "description": "Descrição detalhada do subnó 1...",
+      "level": 3,
+      "x": 0,
+      "y": 0,
+      "color": "#f59e0b",
+      "parent": "${parentNodeId}",
+      "children": []
+    }
+  ]
+}`;
+    } else if (newMindMap) {
+      // Prompt para criar um novo mapa mental completo
+      prompt = `Crie um mapa mental completo e detalhado sobre o seguinte tópico:
+
+Tópico: ${truncatedContent}
+
+Instruções específicas:
+1. Use o tópico como nó central (level 0)
+2. Crie 4-6 ramos principais (level 1) representando os aspectos-chave
+3. Para cada ramo principal, crie 2-4 sub-ramos (level 2) com detalhes específicos
+4. Adicione nós folha (level 3) para exemplos ou detalhes específicos quando relevante
+
+Retorne APENAS um JSON válido com array "nodes" contendo objetos com id, label, description, level, x, y, color, children e parent.
+
+Diretrizes importantes:
+- Use rótulos concisos e significativos (máximo 3-4 palavras)
+- Forneça descrições educativas e informativas (2-3 frases)
+- Use cores diferentes para cada nível: level 0 #8b5cf6, level 1 #3b82f6, level 2 #10b981, level 3 #f59e0b
+- Máximo de 25 nós no total para legibilidade
+- Garanta relacionamentos pai-filho adequados
+- Os IDs devem ser strings numéricas sequenciais`;
+    } else {
+      // Detectar se o texto já está em formato de tópicos
+      const isTopicFormat = detectTopicFormat(truncatedContent);
+      
+      if (isTopicFormat) {
+        prompt = `O texto fornecido já está em formato de tópicos hierárquicos. Converta EXATAMENTE esta estrutura em um mapa mental, preservando a hierarquia original dos tópicos, o conteúdo exato de cada tópico, a estrutura de níveis, e os títulos e subtítulos como estão.
 
 Texto em formato de tópicos: ${truncatedContent}
 
@@ -82,8 +138,8 @@ Diretrizes importantes:
 - Máximo de 20 nós no total para legibilidade
 - Garanta relacionamentos pai-filho adequados
 - Os IDs devem ser strings numéricas sequenciais`;
-    } else {
-      prompt = `Analise o seguinte texto e crie um mapa mental hierárquico e estruturado.
+      } else {
+        prompt = `Analise o seguinte texto e crie um mapa mental hierárquico e estruturado.
 
 Texto: ${truncatedContent}
 
@@ -103,11 +159,14 @@ Diretrizes importantes:
 - Garanta relacionamentos pai-filho adequados
 - Os IDs devem ser strings numéricas sequenciais
 - Cada nó deve ter informações úteis e educativas`;
+      }
     }
 
     const result = await model.generateContent(prompt);
     const response = await result.response;
     const text = response.text();
+
+    console.log('Resposta da IA:', text);
 
     // Extrair JSON da resposta
     let mindMapData;
@@ -117,6 +176,7 @@ Diretrizes importantes:
         throw new Error('Resposta da IA não contém JSON válido');
       }
       mindMapData = JSON.parse(jsonMatch[0]);
+      console.log('Dados parseados:', mindMapData);
     } catch (parseError) {
       console.error('Erro ao fazer parse da resposta da IA:', parseError);
       console.error('Resposta recebida:', text);
@@ -127,8 +187,17 @@ Diretrizes importantes:
     }
 
     // Calcular posições para os nós em layout radial
-    const nodes = calculateNodePositions(mindMapData.nodes);
+    let nodes;
+    if (expandNode) {
+      // Para expansão de nós, não recalcular posições, apenas usar as fornecidas pela IA
+      nodes = mindMapData.nodes;
+      console.log('Nós para expansão:', nodes);
+    } else {
+      nodes = calculateNodePositions(mindMapData.nodes);
+      console.log('Nós com posições calculadas:', nodes);
+    }
 
+    console.log('Retornando nós:', nodes);
     return NextResponse.json({ nodes });
   } catch (error) {
     console.error('Erro ao gerar mapa mental:', error);

@@ -20,6 +20,8 @@ import { CustomNode } from './CustomNode';
 interface MindMapFlowProps {
   nodes: CustomMindMapNode[];
   onNodeClick: (node: CustomMindMapNode) => void;
+  onExpandNode?: (nodeId: string) => void;
+  onCreateNewMindMap?: (nodeLabel: string) => void;
   isLoading: boolean;
 }
 
@@ -30,7 +32,15 @@ const nodeTypes = {
 export const MindMapFlow: React.FC<MindMapFlowProps> = ({
   nodes: mindMapNodes,
   onNodeClick,
+  onExpandNode,
+  onCreateNewMindMap,
 }) => {
+  // Helper function to check if a node is a leaf node (has no children)
+  const isLeafNode = useCallback((nodeId: string) => {
+    const node = mindMapNodes.find(n => n.id === nodeId);
+    const hasChildren = node?.children && node.children.length > 0;
+    return !hasChildren;
+  }, [mindMapNodes]);
   // Convert mindmap nodes to ReactFlow nodes
   const reactFlowNodes: Node[] = useMemo(
     () =>
@@ -45,11 +55,14 @@ export const MindMapFlow: React.FC<MindMapFlowProps> = ({
           color: node.color,
           onClick: () => onNodeClick(node),
           node: node,
+          onExpandNode,
+          onCreateNewMindMap,
+          isLeafNode: isLeafNode(node.id),
         },
         draggable: true,
         selectable: true,
       })),
-    [mindMapNodes, onNodeClick]
+    [mindMapNodes, onNodeClick, onExpandNode, onCreateNewMindMap, isLeafNode]
   );
 
   // Generate edges based on parent-child relationships
@@ -77,8 +90,18 @@ export const MindMapFlow: React.FC<MindMapFlowProps> = ({
     return edges;
   }, [mindMapNodes]);
 
-  const [nodes, , onNodesChange] = useNodesState(reactFlowNodes);
-  const [edges, , onEdgesChange] = useEdgesState(reactFlowEdges);
+  const [nodes, setNodes, onNodesChange] = useNodesState<Node>(reactFlowNodes);
+  const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>(reactFlowEdges);
+
+  // Update nodes when mindMapNodes change
+  React.useEffect(() => {
+    setNodes(reactFlowNodes);
+  }, [reactFlowNodes, setNodes]);
+
+  // Update edges when mindMapNodes change
+  React.useEffect(() => {
+    setEdges(reactFlowEdges);
+  }, [reactFlowEdges, setEdges]);
 
   const onConnect = useCallback(() => {
     // Prevent manual connections for now

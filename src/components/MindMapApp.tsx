@@ -71,6 +71,119 @@ export const MindMapApp: React.FC = () => {
     setSelectedNode(null);
   }, []);
 
+  const handleExpandNode = useCallback(async (nodeId: string) => {
+    const nodeToExpand = nodes.find(n => n.id === nodeId);
+    if (!nodeToExpand) return;
+
+    console.log('Expandindo nó:', nodeToExpand);
+    setIsLoading(true);
+    try {
+      const response = await fetch('/api/generate-mindmap', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ 
+          content: `Expanda o tópico: ${nodeToExpand.label}. ${nodeToExpand.description}`,
+          expandNode: true,
+          parentNodeId: nodeId
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Falha ao expandir nó');
+      }
+
+      const data = await response.json();
+      console.log('Dados recebidos da API:', data);
+      
+      // Merge new nodes with existing ones
+      setNodes(prevNodes => {
+        console.log('Nós anteriores:', prevNodes);
+        
+        if (!data.nodes || data.nodes.length === 0) {
+          console.log('Nenhum novo nó recebido');
+          return prevNodes;
+        }
+
+        const updatedNodes = [...prevNodes];
+        const parentNode = updatedNodes.find(n => n.id === nodeId);
+        
+        if (!parentNode) {
+          console.log('Nó pai não encontrado:', nodeId);
+          return prevNodes;
+        }
+
+        // Filtrar apenas os novos nós
+        const newNodes = data.nodes.filter((n: MindMapNode) => 
+          !updatedNodes.some(existing => existing.id === n.id)
+        );
+        
+        console.log('Novos nós a adicionar:', newNodes);
+        
+        if (newNodes.length > 0) {
+          // Add new child IDs to parent
+          const newChildIds = newNodes.map((n: MindMapNode) => n.id);
+          parentNode.children = [...(parentNode.children || []), ...newChildIds];
+          
+          // Calcular posições para os novos nós
+          const baseAngle = Math.random() * 2 * Math.PI;
+          const radius = 200 + (parentNode.level * 100);
+          
+          newNodes.forEach((newNode: MindMapNode, index: number) => {
+            const angle = baseAngle + (index * (Math.PI / 3));
+            newNode.x = parentNode.x + Math.cos(angle) * radius;
+            newNode.y = parentNode.y + Math.sin(angle) * radius;
+            newNode.parent = nodeId;
+            newNode.level = parentNode.level + 1;
+          });
+          
+          // Add new nodes
+          updatedNodes.push(...newNodes);
+        }
+        
+        console.log('Nós finais:', updatedNodes);
+        return updatedNodes;
+      });
+    } catch (error) {
+      console.error('Erro ao expandir nó:', error);
+      alert('Erro ao expandir nó: ' + (error instanceof Error ? error.message : 'Erro desconhecido'));
+    } finally {
+      setIsLoading(false);
+    }
+  }, [nodes]);
+
+  const handleCreateNewMindMap = useCallback(async (nodeLabel: string) => {
+    console.log('Criando novo mapa mental para:', nodeLabel);
+    setIsLoading(true);
+    try {
+      const response = await fetch('/api/generate-mindmap', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ 
+          content: `Crie um mapa mental completo sobre: ${nodeLabel}`,
+          newMindMap: true
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Falha ao criar novo mapa mental');
+      }
+
+      const data = await response.json();
+      console.log('Novo mapa mental recebido:', data);
+      setNodes(data.nodes);
+      setSelectedNode(null);
+    } catch (error) {
+      console.error('Erro ao criar novo mapa mental:', error);
+      alert('Erro ao criar novo mapa mental: ' + (error instanceof Error ? error.message : 'Erro desconhecido'));
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
   return (
     <div className="h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 overflow-hidden">
       {/* Header */}
@@ -160,6 +273,8 @@ export const MindMapApp: React.FC = () => {
             <MindMapFlow
               nodes={nodes}
               onNodeClick={handleNodeClick}
+              onExpandNode={handleExpandNode}
+              onCreateNewMindMap={handleCreateNewMindMap}
               isLoading={isLoading}
             />
           ) : (
