@@ -102,26 +102,64 @@ Exemplo de estrutura:
 }`;
     } else if (newMindMap) {
       console.log('🆕 CONDIÇÃO: Novo mapa mental (com flag newMindMap)');
-      // Prompt para criar um novo mapa mental completo
-      prompt = `Crie um mapa mental completo e detalhado sobre o seguinte tópico:
+      // Prompt para criar um novo mapa mental completo e detalhado
+      prompt = `Crie um mapa mental MUITO DETALHADO e completo sobre o seguinte tópico:
 
 Tópico: ${truncatedContent}
 
-Instruções específicas:
-1. Use o tópico como nó central (level 0)
-2. Crie 4-6 ramos principais (level 1) representando os aspectos-chave
-3. Para cada ramo principal, crie 2-4 sub-ramos (level 2) com detalhes específicos
-4. Adicione nós folha (level 3) para exemplos ou detalhes específicos quando relevante
+Instruções específicas para criar um mapa mental rico em detalhes:
+
+1. Use o tópico como nó central (level 0) com description abrangente
+2. Crie 6-8 ramos principais (level 1) cobrindo TODOS os aspectos fundamentais do tópico:
+   - Conceitos e definições básicas
+   - História e evolução
+   - Tipos e classificações
+   - Principais áreas/componentes/ramos
+   - Aplicações práticas
+   - Metodologias e técnicas
+   - Impactos e consequências
+   - Futuro e tendências
+   - Ética e considerações sociais (quando aplicável)
+
+3. Para cada ramo principal (level 1), crie 3-5 sub-ramos (level 2) com:
+   - Subtópicos específicos e relevantes
+   - Conceitos-chave dentro da área
+   - Metodologias ou abordagens específicas
+   - Exemplos práticos importantes
+
+4. Para sub-ramos importantes (level 2), adicione nós filhos (level 3) com:
+   - Detalhes técnicos específicos
+   - Exemplos concretos
+   - Casos de uso
+   - Ferramentas ou tecnologias específicas
+   - Características distintivas
+
+5. Quando relevante, adicione um quarto nível (level 4) para:
+   - Exemplos muito específicos
+   - Detalhes técnicos avançados
+   - Casos práticos
+
+EXEMPLO DE ESTRUTURA DETALHADA:
+
+Para "Inteligência Artificial", crie ramos como:
+- "Conceitos Básicos" → "Definição de IA", "História", "Tipos de IA", "Objetivos"
+- "Ramos da IA" → "Machine Learning", "Deep Learning", "NLP", "Visão Computacional", "Robótica"
+- "Machine Learning" → "Supervisionado", "Não Supervisionado", "Reforço", "Algoritmos"
+- "Aplicações" → "Saúde", "Finanças", "Transporte", "Marketing", "Segurança"
+- "Ética e Impactos" → "Privacidade", "Viés Algorítmico", "Mercado de Trabalho", "Regulação"
+- "Tecnologias" → "Python", "TensorFlow", "PyTorch", "Big Data"
+- "Futuro" → "IA Geral", "Singularidade", "Tendências"
 
 Retorne APENAS um JSON válido com array "nodes" contendo objetos com id, label, description, level, x, y, color, children e parent.
 
-Diretrizes importantes:
-- Use rótulos concisos e significativos (máximo 3-4 palavras)
-- Forneça descrições educativas e informativas (2-3 frases)
-- Use cores diferentes para cada nível: level 0 #8b5cf6, level 1 #3b82f6, level 2 #10b981, level 3 #f59e0b
-- Máximo de 25 nós no total para legibilidade
-- Garanta relacionamentos pai-filho adequados
-- Os IDs devem ser strings numéricas sequenciais`;
+Diretrizes rigorosas:
+- Use rótulos precisos e informativos (máximo 4-5 palavras)
+- Forneça descriptions RICAS e educativas (3-5 frases explicativas)
+- Use cores: level 0 #8b5cf6, level 1 #3b82f6, level 2 #10b981, level 3 #f59e0b, level 4 #ef4444
+- Crie 35-50 nós no total para máximo detalhamento
+- Garanta hierarquia clara e relacionamentos corretos
+- IDs sequenciais numéricos como strings
+- Cada description deve ser informativa e educativa, não apenas repetir o label`;
     } else {
       console.log('🥇 CONDIÇÃO: Primeira geração (sem flags especiais)');
       // Detectar se o texto já está em formato de tópicos
@@ -129,47 +167,90 @@ Diretrizes importantes:
       
       if (isTopicFormat) {
         console.log('📋 SUBCONDIÇÃO: Formato de tópicos detectado');
-        prompt = `O texto fornecido já está em formato de tópicos hierárquicos. Converta EXATAMENTE esta estrutura em um mapa mental, preservando a hierarquia original dos tópicos, o conteúdo exato de cada tópico, a estrutura de níveis, e os títulos e subtítulos como estão.
+        prompt = `O texto fornecido já está em formato de tópicos hierárquicos. Converta esta estrutura em um mapa mental DETALHADO, preservando a hierarquia original e EXPANDINDO com informações educativas.
 
 Texto em formato de tópicos: ${truncatedContent}
 
 Instruções específicas:
 1. Use o primeiro tópico principal ou título como nó central (level 0)
-2. Mantenha a hierarquia EXATA dos tópicos
+2. Mantenha a hierarquia EXATA dos tópicos originais
 3. Preserve o texto original dos tópicos como labels
-4. Use cada subtópico como está escrito
+4. Para cada tópico, crie descriptions RICAS e educativas (3-5 frases) que:
+   - Expliquem o conceito em detalhes
+   - Forneçam contexto adicional
+   - Incluam exemplos ou aplicações práticas
+   - Adicionem valor educativo além do label
 5. Mantenha a estrutura pai-filho conforme a indentação/numeração original
+6. Se possível, adicione subtópicos educativos adicionais quando apropriado
+
+IMPORTANTE: Mesmo preservando a estrutura original, as descriptions devem ser MUITO informativas e educativas.
 
 Retorne APENAS um JSON válido com array "nodes" contendo objetos com id, label, description, level, x, y, color, children e parent.
 
 Diretrizes importantes:
-- Use EXATAMENTE os textos originais como labels, respeitando a hierarquia dada
-- Use cores diferentes para cada nível: level 0 #8b5cf6, level 1 #3b82f6, level 2 #10b981, level 3 #f59e0b
-- Máximo de 20 nós no total para legibilidade
+- Use EXATAMENTE os textos originais como labels, respeitando a hierarquia
+- Forneça descriptions RICAS e educativas (3-5 frases explicativas)
+- Use cores: level 0 #8b5cf6, level 1 #3b82f6, level 2 #10b981, level 3 #f59e0b, level 4 #ef4444
+- Mínimo de 25-35 nós para máximo detalhamento
 - Garanta relacionamentos pai-filho adequados
-- Os IDs devem ser strings numéricas sequenciais`;
+- IDs sequenciais numéricos como strings
+- Descriptions devem ser informativas e educativas, agregando valor real`;
       } else {
-        console.log('� SUBCONDIÇÃO: Texto livre detectado');
-        prompt = `Analise o seguinte texto e crie um mapa mental hierárquico e estruturado.
+        console.log('📝 SUBCONDIÇÃO: Texto livre detectado');
+        prompt = `Analise profundamente o seguinte texto e crie um mapa mental MUITO DETALHADO e estruturado.
 
 Texto: ${truncatedContent}
 
-Siga estas instruções:
-1. Identifique o tópico central principal (level 0)
-2. Crie 3-6 ramos principais (level 1) representando os temas-chave
-3. Para cada ramo principal, crie 2-4 sub-ramos (level 2) com detalhes específicos
-4. Adicione nós folha (level 3+) para exemplos ou detalhes específicos quando relevante
+Instruções para análise profunda e criação detalhada:
+
+1. Identifique o tópico central principal (level 0) e forneça description abrangente
+2. Analise o texto para extrair 6-8 ramos principais (level 1) que representem:
+   - Conceitos fundamentais mencionados
+   - Temas principais abordados
+   - Categorias ou classificações presentes
+   - Processos ou metodologias descritos
+   - Aplicações ou exemplos citados
+   - Causas e consequências mencionadas
+   - Aspectos teóricos e práticos
+   - Implicações ou impactos discutidos
+
+3. Para cada ramo principal (level 1), crie 3-5 sub-ramos (level 2) extraindo:
+   - Subtópicos específicos do texto
+   - Detalhes importantes mencionados
+   - Exemplos concretos citados
+   - Características ou propriedades descritas
+   - Métodos ou técnicas explicados
+
+4. Para sub-ramos relevantes (level 2), adicione nós filhos (level 3) com:
+   - Detalhes específicos do texto
+   - Exemplos práticos mencionados
+   - Dados ou estatísticas citados
+   - Casos específicos descritos
+   - Ferramentas ou recursos mencionados
+
+5. Quando o texto permitir, adicione level 4 para:
+   - Detalhes muito específicos
+   - Exemplos concretos únicos
+   - Aspectos técnicos avançados
+
+ESTRATÉGIA DE EXTRAÇÃO:
+- Leia CUIDADOSAMENTE todo o texto
+- Identifique palavras-chave e conceitos principais
+- Extraia informações implícitas e explícitas
+- Organize em hierarquia lógica e educativa
+- Mantenha fidelidade ao conteúdo original
+- Adicione contexto educativo nas descriptions
 
 Retorne APENAS um JSON válido com array "nodes" contendo objetos com id, label, description, level, x, y, color, children e parent.
 
-Diretrizes importantes:
-- Use rótulos concisos e significativos (máximo 3-4 palavras)
-- Forneça descrições educativas e informativas (2-3 frases)
-- Use cores diferentes para cada nível: level 0 #8b5cf6, level 1 #3b82f6, level 2 #10b981, level 3 #f59e0b
-- Máximo de 20 nós no total para legibilidade
-- Garanta relacionamentos pai-filho adequados
-- Os IDs devem ser strings numéricas sequenciais
-- Cada nó deve ter informações úteis e educativas`;
+Diretrizes rigorosas:
+- Use rótulos precisos baseados no texto (máximo 4-5 palavras)
+- Forneça descriptions EDUCATIVAS e detalhadas (3-5 frases)
+- Use cores: level 0 #8b5cf6, level 1 #3b82f6, level 2 #10b981, level 3 #f59e0b, level 4 #ef4444
+- Crie 30-45 nós para máximo aproveitamento do conteúdo
+- Garanta hierarquia lógica baseada no texto
+- IDs sequenciais numéricos como strings
+- Descriptions devem agregar valor educativo, não apenas repetir labels`;
       }
     }
 
