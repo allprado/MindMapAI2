@@ -122,24 +122,34 @@ export const MindMapApp: React.FC = () => {
         console.log('Novos nós a adicionar:', newNodes);
         
         if (newNodes.length > 0) {
-          // Add new child IDs to parent
+          // Add new child IDs to parent (evitando duplicatas)
           const newChildIds = newNodes.map((n: MindMapNode) => n.id);
-          parentNode.children = [...(parentNode.children || []), ...newChildIds];
+          const existingChildIds = parentNode.children || [];
+          const uniqueNewChildIds = newChildIds.filter((id: string) => !existingChildIds.includes(id));
           
-          // Calcular posições para os novos nós
-          const baseAngle = Math.random() * 2 * Math.PI;
-          const radius = 200 + (parentNode.level * 100);
+          if (uniqueNewChildIds.length > 0) {
+            parentNode.children = [...existingChildIds, ...uniqueNewChildIds];
+          }
           
-          newNodes.forEach((newNode: MindMapNode, index: number) => {
-            const angle = baseAngle + (index * (Math.PI / 3));
-            newNode.x = parentNode.x + Math.cos(angle) * radius;
-            newNode.y = parentNode.y + Math.sin(angle) * radius;
+          // Definir propriedades básicas (Dagre calculará as posições)
+          newNodes.forEach((newNode: MindMapNode) => {
+            newNode.x = 0; // Será sobrescrito pelo Dagre
+            newNode.y = 0; // Será sobrescrito pelo Dagre
             newNode.parent = nodeId;
             newNode.level = parentNode.level + 1;
           });
           
-          // Add new nodes
-          updatedNodes.push(...newNodes);
+          // Add new nodes (verificando se já não existem)
+          const finalNewNodes = newNodes.filter((newNode: MindMapNode) => 
+            !updatedNodes.some(existing => existing.id === newNode.id)
+          );
+          
+          if (finalNewNodes.length > 0) {
+            updatedNodes.push(...finalNewNodes);
+            console.log('Nós realmente adicionados:', finalNewNodes.length);
+          } else {
+            console.log('Nenhum nó novo foi adicionado (já existiam)');
+          }
         }
         
         console.log('Nós finais:', updatedNodes);
@@ -153,18 +163,18 @@ export const MindMapApp: React.FC = () => {
     }
   }, [nodes]);
 
-  const handleCreateNewMindMap = useCallback(async (nodeLabel: string) => {
+    const handleCreateNewMindMap = useCallback(async (nodeLabel: string) => {
     console.log('Criando novo mapa mental para:', nodeLabel);
     setIsLoading(true);
     try {
+      // Unificar a chamada para ser idêntica à handleTextSubmit
       const response = await fetch('/api/generate-mindmap', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ 
-          content: `Crie um mapa mental completo sobre: ${nodeLabel}`,
-          newMindMap: true
+          content: nodeLabel 
         }),
       });
 
