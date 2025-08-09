@@ -49,11 +49,11 @@ const nodeTypes = {
   custom: CustomNode,
 };
 
-// Configuração do Dagre conforme a imagem
-const dagreGraph = new dagre.graphlib.Graph();
-dagreGraph.setDefaultEdgeLabel(() => ({}));
-
 const getLayoutedElements = (nodes: Node[], edges: Edge[]) => {
+  // Criar uma nova instância do grafo Dagre para cada layout - isso garante estado limpo
+  const dagreGraph = new dagre.graphlib.Graph();
+  dagreGraph.setDefaultEdgeLabel(() => ({}));
+  
   // Configurações otimizadas para mapas mentais mais compactos
   dagreGraph.setGraph({ 
     rankdir: 'LR', // Rank Direction: LR (Left to Right)

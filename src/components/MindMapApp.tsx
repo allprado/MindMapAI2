@@ -281,6 +281,7 @@ export const MindMapApp: React.FC = () => {
         <div className="flex-1 relative">
           {nodes.length > 0 ? (
             <MindMapFlow
+              key={nodes.find(n => n.level === 0)?.id || 'default'} // Força remontagem do componente
               nodes={nodes}
               onNodeClick={handleNodeClick}
               onExpandNode={handleExpandNode}
