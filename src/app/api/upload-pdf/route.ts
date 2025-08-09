@@ -45,48 +45,85 @@ export async function POST(request: NextRequest) {
     const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash-exp' });
 
     const prompt = `
-    Analise este documento PDF e crie um mapa mental hierárquico e estruturado. 
+    Analise PROFUNDAMENTE este documento PDF e crie um mapa mental MUITO DETALHADO e estruturado com base em seu conteúdo.
     
-    Siga estas instruções:
-    1. Identifique o tópico central principal (level 0)
-    2. Crie 3-6 ramos principais (level 1) representando os temas-chave
-    3. Para cada ramo principal, crie 2-4 sub-ramos (level 2) com detalhes específicos
-    4. Adicione nós folha (level 3+) para exemplos ou detalhes específicos quando relevante
+    Instruções para análise profunda do PDF e criação detalhada:
+
+    1. Identifique o tópico central principal (level 0) com description abrangente
+    2. Analise TODO o conteúdo do PDF para extrair 6-8 ramos principais (level 1) que representem:
+       - Conceitos fundamentais apresentados no documento
+       - Temas principais abordados
+       - Categorias ou classificações descritas
+       - Processos ou metodologias explicados
+       - Aplicações ou exemplos citados no PDF
+       - Teorias e princípios apresentados
+       - Aspectos práticos e teóricos
+       - Implicações ou consequências discutidas
+
+    3. Para cada ramo principal (level 1), crie 3-5 sub-ramos (level 2) extraindo:
+       - Subtópicos específicos do documento
+       - Detalhes importantes mencionados
+       - Exemplos concretos citados no PDF
+       - Características ou propriedades descritas
+       - Métodos ou técnicas explicados no documento
+
+    4. Para sub-ramos relevantes (level 2), adicione nós filhos (level 3) com:
+       - Detalhes específicos extraídos do PDF
+       - Exemplos práticos mencionados no documento
+       - Dados ou estatísticas citados
+       - Casos específicos descritos
+       - Ferramentas ou recursos mencionados
+
+    5. Quando o conteúdo do PDF permitir, adicione level 4 para:
+       - Detalhes muito específicos
+       - Exemplos concretos únicos do documento
+       - Aspectos técnicos avançados mencionados
+
+    ESTRATÉGIA DE EXTRAÇÃO DO PDF:
+    - Leia CUIDADOSAMENTE todo o conteúdo do documento
+    - Identifique palavras-chave e conceitos principais presentes no PDF
+    - Extraia informações explícitas e implícitas do texto
+    - Organize em hierarquia lógica e educativa
+    - Mantenha fidelidade absoluta ao conteúdo do documento
+    - Adicione contexto educativo nas descriptions baseado no PDF
 
     Retorne APENAS um JSON válido no seguinte formato:
     {
       "nodes": [
         {
           "id": "1",
-          "label": "Tópico Principal",
-          "description": "Descrição detalhada do tópico (2-3 frases educativas)",
+          "label": "Tópico Principal do PDF",
+          "description": "Descrição abrangente baseada no conteúdo do documento (3-5 frases educativas)",
           "level": 0,
           "x": 0,
           "y": 0,
           "color": "#8b5cf6",
-          "children": ["2", "3", "4"]
+          "children": ["2", "3", "4", "5", "6", "7", "8", "9"]
         },
         {
           "id": "2",
-          "label": "Subtópico 1",
-          "description": "Explicação detalhada do primeiro subtópico",
+          "label": "Ramo Principal 1",
+          "description": "Explicação detalhada extraída do PDF (3-5 frases informativas)",
           "level": 1,
-          "x": 300,
-          "y": -100,
+          "x": 0,
+          "y": 0,
           "color": "#3b82f6",
-          "children": ["5", "6"],
+          "children": ["10", "11", "12", "13"],
           "parent": "1"
         }
       ]
     }
 
-    Diretrizes importantes:
-    - Use rótulos concisos e significativos (máximo 3-4 palavras)
-    - Forneça descrições educativas e informativas
-    - Use cores diferentes para cada nível: level 0 (#8b5cf6), level 1 (#3b82f6), level 2 (#10b981), level 3 (#f59e0b)
-    - Máximo de 20 nós no total para legibilidade
-    - Garanta relacionamentos pai-filho adequados
-    - Os IDs devem ser strings numéricas sequenciais
+    Diretrizes rigorosas:
+    - Use rótulos precisos baseados no conteúdo do PDF (máximo 4-5 palavras)
+    - Forneça descriptions EDUCATIVAS e detalhadas extraídas do documento (3-5 frases)
+    - Use cores: level 0 #8b5cf6, level 1 #3b82f6, level 2 #10b981, level 3 #f59e0b, level 4 #ef4444
+    - Crie 35-50 nós para máximo aproveitamento do conteúdo do PDF
+    - Garanta hierarquia lógica baseada no documento
+    - IDs sequenciais numéricos como strings
+    - Descriptions devem ser baseadas no conteúdo real do PDF e agregar valor educativo
+    - Mantenha fidelidade absoluta ao conteúdo do documento
+    - Extraia o máximo de informações úteis e educativas do PDF
     `;
 
     const result = await model.generateContent([prompt, filePart]);
@@ -110,8 +147,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Calcular posições para os nós em layout radial
-    const nodes = calculateNodePositions(mindMapData.nodes);
+    // Para PDFs, não calcular posições - deixar o Dagre fazer isso no frontend
+    const nodes = mindMapData.nodes.map((node: any) => ({
+      ...node,
+      x: 0, // Posições temporárias
+      y: 0  // Serão recalculadas pelo Dagre
+    }));
 
     return NextResponse.json({ nodes });
   } catch (error) {
@@ -121,37 +162,4 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
-}
-
-function calculateNodePositions(nodes: MindMapNode[]): MindMapNode[] {
-  const centerNode = nodes.find(node => node.level === 0);
-  if (!centerNode) return nodes;
-
-  // Posicionar nó central
-  centerNode.x = 0;
-  centerNode.y = 0;
-
-  // Obter nós de nível 1 (ramos principais)
-  const level1Nodes = nodes.filter(node => node.level === 1);
-  const angleStep = (2 * Math.PI) / level1Nodes.length;
-
-  level1Nodes.forEach((node, index) => {
-    const angle = index * angleStep;
-    const radius = 300;
-    node.x = Math.cos(angle) * radius;
-    node.y = Math.sin(angle) * radius;
-
-    // Posicionar nós filhos
-    if (node.children) {
-      const childNodes = nodes.filter(child => node.children?.includes(child.id));
-      childNodes.forEach((childNode, childIndex) => {
-        const childAngle = angle + (childIndex - (childNodes.length - 1) / 2) * 0.3;
-        const childRadius = radius + 150 + (childNode.level - 2) * 100;
-        childNode.x = Math.cos(childAngle) * childRadius;
-        childNode.y = Math.sin(childAngle) * childRadius;
-      });
-    }
-  });
-
-  return nodes;
 }
