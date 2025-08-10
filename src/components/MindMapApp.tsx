@@ -7,13 +7,123 @@ import { MindMapFlow } from './MindMapFlow';
 import { FileUpload } from './FileUpload';
 import { TextInput } from './TextInput';
 import { SidePanel } from './SidePanel';
-import { MindMapNode } from '@/types';
+import { MindMapNode, MindMapHistory } from '@/types';
+
+// Função para extrair o título do texto de itens
+const extractTitleFromItems = (itemsText: string): string => {
+  const lines = itemsText.trim().split('\n');
+  const firstLine = lines[0]?.trim();
+  
+  // Se a primeira linha não começar com número, é provavelmente o título
+  if (firstLine && !firstLine.match(/^\d+(\.\d+)*\s/)) {
+    return firstLine.length > 50 ? firstLine.substring(0, 50) + '...' : firstLine;
+  }
+  
+  return 'Mapa Mental de Itens';
+};
+
+// Função para converter estrutura de itens em nós do mapa mental
+const parseItemsToNodes = (itemsText: string): MindMapNode[] => {
+  const lines = itemsText.trim().split('\n').filter(line => line.trim());
+  const nodes: MindMapNode[] = [];
+  const nodeMap = new Map<string, MindMapNode>();
+  
+  let rootTitle = 'Mapa Mental';
+  let startIndex = 0;
+  
+  // Verificar se a primeira linha é um título (não começa com número)
+  if (lines[0] && !lines[0].trim().match(/^\d+(\.\d+)*\s/)) {
+    rootTitle = lines[0].trim();
+    startIndex = 1;
+  }
+  
+  // Criar nó raiz
+  const rootNode: MindMapNode = {
+    id: '1',
+    label: rootTitle,
+    description: 'Nó principal do mapa mental',
+    level: 0,
+    x: 0,
+    y: 0,
+    color: '#8b5cf6',
+    children: [],
+  };
+  nodes.push(rootNode);
+  nodeMap.set('root', rootNode);
+  
+  // Processar cada linha
+  for (let i = startIndex; i < lines.length; i++) {
+    const line = lines[i].trim();
+    if (!line) continue;
+    
+    // Extrair numeração e texto
+    const match = line.match(/^(\d+(?:\.\d+)*)\s+(.+)$/);
+    if (!match) continue;
+    
+    const [, numbering, text] = match;
+    const parts = numbering.split('.');
+    const level = parts.length;
+    const nodeId = `node-${numbering}`;
+    
+    // Determinar cor baseada no nível
+    const colors = ['#8b5cf6', '#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'];
+    const color = colors[level] || colors[colors.length - 1];
+    
+    // Criar nó
+    const node: MindMapNode = {
+      id: nodeId,
+      label: text,
+      description: `${text} (Nível ${level})`,
+      level: level,
+      x: 0,
+      y: 0,
+      color: color,
+      children: [],
+    };
+    
+    nodes.push(node);
+    nodeMap.set(numbering, node);
+    
+    // Determinar o nó pai
+    let parentKey = 'root';
+    let parentNode = rootNode;
+    
+    if (level > 1) {
+      // Para subitens, encontrar o pai
+      const parentParts = parts.slice(0, -1);
+      const parentNumbering = parentParts.join('.');
+      const parentNodeFromMap = nodeMap.get(parentNumbering);
+      
+      if (parentNodeFromMap) {
+        parentKey = parentNumbering;
+        parentNode = parentNodeFromMap;
+        node.parent = parentNode.id;
+      } else {
+        // Se não encontrar o pai, conectar à raiz
+        node.parent = rootNode.id;
+      }
+    } else {
+      // Itens de nível 1 são filhos da raiz
+      node.parent = rootNode.id;
+    }
+    
+    // Adicionar este nó como filho do pai
+    if (!parentNode.children) {
+      parentNode.children = [];
+    }
+    parentNode.children.push(nodeId);
+  }
+  
+  return nodes;
+};
 
 export const MindMapApp: React.FC = () => {
   const [nodes, setNodes] = useState<MindMapNode[]>([]);
   const [selectedNode, setSelectedNode] = useState<MindMapNode | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<'upload' | 'text'>('upload');
+  const [mindMapHistory, setMindMapHistory] = useState<MindMapHistory[]>([]);
+  const [currentMindMapId, setCurrentMindMapId] = useState<string | null>(null);
 
   const handleTextSubmit = useCallback(async (text: string) => {
     setIsLoading(true);
@@ -31,9 +141,48 @@ export const MindMapApp: React.FC = () => {
       }
 
       const data = await response.json();
+      
+      // Criar novo mapa mental no histórico
+      const newMindMapId = `mindmap-${Date.now()}`;
+      const newMindMap: MindMapHistory = {
+        id: newMindMapId,
+        nodes: data.nodes,
+        title: text.substring(0, 50) + (text.length > 50 ? '...' : ''),
+        createdAt: new Date(),
+      };
+
+      setMindMapHistory(prev => [...prev, newMindMap]);
+      setCurrentMindMapId(newMindMapId);
       setNodes(data.nodes);
     } catch (error) {
       console.error('Erro ao gerar mapa mental:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  const handleItemsSubmit = useCallback(async (itemsText: string) => {
+    setIsLoading(true);
+    try {
+      // Processar os itens localmente sem chamada para IA
+      const nodes = parseItemsToNodes(itemsText);
+      
+      // Criar novo mapa mental no histórico
+      const newMindMapId = `mindmap-${Date.now()}`;
+      const title = extractTitleFromItems(itemsText);
+      const newMindMap: MindMapHistory = {
+        id: newMindMapId,
+        nodes: nodes,
+        title: title,
+        createdAt: new Date(),
+      };
+
+      setMindMapHistory(prev => [...prev, newMindMap]);
+      setCurrentMindMapId(newMindMapId);
+      setNodes(nodes);
+    } catch (error) {
+      console.error('Erro ao processar itens:', error);
+      alert('Erro ao processar a estrutura de itens. Verifique o formato.');
     } finally {
       setIsLoading(false);
     }
@@ -55,6 +204,18 @@ export const MindMapApp: React.FC = () => {
       }
 
       const data = await response.json();
+      
+      // Criar novo mapa mental no histórico
+      const newMindMapId = `mindmap-${Date.now()}`;
+      const newMindMap: MindMapHistory = {
+        id: newMindMapId,
+        nodes: data.nodes,
+        title: file.name.replace('.pdf', ''),
+        createdAt: new Date(),
+      };
+
+      setMindMapHistory(prev => [...prev, newMindMap]);
+      setCurrentMindMapId(newMindMapId);
       setNodes(data.nodes);
     } catch (error) {
       console.error('Erro ao processar PDF:', error);
@@ -163,7 +324,7 @@ export const MindMapApp: React.FC = () => {
     }
   }, [nodes]);
 
-    const handleCreateNewMindMap = useCallback(async (nodeLabel: string) => {
+  const handleCreateNewMindMap = useCallback(async (nodeLabel: string, parentNodeId: string) => {
     console.log('Criando novo mapa mental para:', nodeLabel);
     setIsLoading(true);
     try {
@@ -184,6 +345,56 @@ export const MindMapApp: React.FC = () => {
 
       const data = await response.json();
       console.log('Novo mapa mental recebido:', data);
+      
+      // Criar novo mapa mental no histórico
+      const newMindMapId = `mindmap-${Date.now()}`;
+      const newMindMap: MindMapHistory = {
+        id: newMindMapId,
+        parentNodeId: parentNodeId,
+        parentMindMapId: currentMindMapId || undefined,
+        nodes: data.nodes,
+        title: nodeLabel,
+        createdAt: new Date(),
+        creationMethod: 'auto',
+      };
+
+      setMindMapHistory(prev => [...prev, newMindMap]);
+      
+      // Atualizar o nó pai para incluir o novo mapa mental
+      const updateNodeWithChildMindMap = (node: MindMapNode, newMindMapId: string) => {
+        if (node.id === parentNodeId) {
+          const currentChildMindMapIds = node.childMindMapIds || [];
+          return {
+            ...node,
+            hasChildMindMaps: true,
+            childMindMapIds: [...currentChildMindMapIds, newMindMapId],
+            // Manter compatibilidade com versão anterior
+            hasChildMindMap: true,
+            childMindMapId: currentChildMindMapIds.length === 0 ? newMindMapId : node.childMindMapId,
+          };
+        }
+        return node;
+      };
+
+      // Atualizar o histórico
+      setMindMapHistory(prevHistory => 
+        prevHistory.map(mindMap => 
+          mindMap.id === currentMindMapId 
+            ? {
+                ...mindMap,
+                nodes: mindMap.nodes.map(node => updateNodeWithChildMindMap(node, newMindMapId))
+              }
+            : mindMap
+        )
+      );
+      
+      // Atualizar os nós atuais
+      setNodes(prevNodes => 
+        prevNodes.map(node => updateNodeWithChildMindMap(node, newMindMapId))
+      );
+      
+      // Navegar para o novo mapa mental
+      setCurrentMindMapId(newMindMapId);
       setNodes(data.nodes);
       setSelectedNode(null);
     } catch (error) {
@@ -192,7 +403,269 @@ export const MindMapApp: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [currentMindMapId]);
+
+  const handleCreateMindMapFromPDF = useCallback(async (file: File, nodeLabel: string, parentNodeId: string) => {
+    setIsLoading(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const response = await fetch('/api/upload-pdf', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        throw new Error('Falha ao processar PDF');
+      }
+
+      const data = await response.json();
+      
+      // Criar novo mapa mental no histórico
+      const newMindMapId = `mindmap-${Date.now()}`;
+      const newMindMap: MindMapHistory = {
+        id: newMindMapId,
+        parentNodeId: parentNodeId,
+        parentMindMapId: currentMindMapId || undefined,
+        nodes: data.nodes,
+        title: `${nodeLabel} - ${file.name.replace('.pdf', '')}`,
+        createdAt: new Date(),
+        creationMethod: 'pdf',
+      };
+
+      setMindMapHistory(prev => [...prev, newMindMap]);
+      
+      // Atualizar o nó pai para incluir o novo mapa mental
+      const updateNodeWithChildMindMap = (node: MindMapNode, newMindMapId: string) => {
+        if (node.id === parentNodeId) {
+          const currentChildMindMapIds = node.childMindMapIds || [];
+          return {
+            ...node,
+            hasChildMindMaps: true,
+            childMindMapIds: [...currentChildMindMapIds, newMindMapId],
+            // Manter compatibilidade com versão anterior
+            hasChildMindMap: true,
+            childMindMapId: currentChildMindMapIds.length === 0 ? newMindMapId : node.childMindMapId,
+          };
+        }
+        return node;
+      };
+
+      // Atualizar o histórico
+      setMindMapHistory(prevHistory => 
+        prevHistory.map(mindMap => 
+          mindMap.id === currentMindMapId 
+            ? {
+                ...mindMap,
+                nodes: mindMap.nodes.map(node => updateNodeWithChildMindMap(node, newMindMapId))
+              }
+            : mindMap
+        )
+      );
+      
+      // Atualizar os nós atuais
+      setNodes(prevNodes => 
+        prevNodes.map(node => updateNodeWithChildMindMap(node, newMindMapId))
+      );
+      
+      // Navegar para o novo mapa mental
+      setCurrentMindMapId(newMindMapId);
+      setNodes(data.nodes);
+      setSelectedNode(null);
+    } catch (error) {
+      console.error('Erro ao processar PDF:', error);
+      alert('Erro ao processar PDF: ' + (error instanceof Error ? error.message : 'Erro desconhecido'));
+    } finally {
+      setIsLoading(false);
+    }
+  }, [currentMindMapId]);
+
+  const handleCreateMindMapFromText = useCallback(async (text: string, nodeLabel: string, parentNodeId: string, isItems?: boolean) => {
+    setIsLoading(true);
+    try {
+      let nodes;
+      
+      if (isItems) {
+        // Processar os itens localmente sem chamada para IA
+        nodes = parseItemsToNodes(text);
+      } else {
+        // Usar IA para processar texto livre
+        const response = await fetch('/api/generate-mindmap', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ content: text }),
+        });
+
+        if (!response.ok) {
+          throw new Error('Falha ao gerar mapa mental');
+        }
+
+        const data = await response.json();
+        nodes = data.nodes;
+      }
+      
+      // Criar novo mapa mental no histórico
+      const newMindMapId = `mindmap-${Date.now()}`;
+      const title = isItems ? extractTitleFromItems(text) : `${nodeLabel} - Texto`;
+      const newMindMap: MindMapHistory = {
+        id: newMindMapId,
+        parentNodeId: parentNodeId,
+        parentMindMapId: currentMindMapId || undefined,
+        nodes: nodes,
+        title: title,
+        createdAt: new Date(),
+        creationMethod: isItems ? 'items' : 'text',
+      };
+
+      setMindMapHistory(prev => [...prev, newMindMap]);
+      
+      // Atualizar o nó pai para incluir o novo mapa mental
+      const updateNodeWithChildMindMap = (node: MindMapNode, newMindMapId: string) => {
+        if (node.id === parentNodeId) {
+          const currentChildMindMapIds = node.childMindMapIds || [];
+          return {
+            ...node,
+            hasChildMindMaps: true,
+            childMindMapIds: [...currentChildMindMapIds, newMindMapId],
+            // Manter compatibilidade com versão anterior
+            hasChildMindMap: true,
+            childMindMapId: currentChildMindMapIds.length === 0 ? newMindMapId : node.childMindMapId,
+          };
+        }
+        return node;
+      };
+
+      // Atualizar o histórico
+      setMindMapHistory(prevHistory => 
+        prevHistory.map(mindMap => 
+          mindMap.id === currentMindMapId 
+            ? {
+                ...mindMap,
+                nodes: mindMap.nodes.map(node => updateNodeWithChildMindMap(node, newMindMapId))
+              }
+            : mindMap
+        )
+      );
+      
+      // Atualizar os nós atuais
+      setNodes(prevNodes => 
+        prevNodes.map(node => updateNodeWithChildMindMap(node, newMindMapId))
+      );
+      
+      // Navegar para o novo mapa mental
+      setCurrentMindMapId(newMindMapId);
+      setNodes(nodes);
+      setSelectedNode(null);
+    } catch (error) {
+      console.error('Erro ao criar mapa mental:', error);
+      alert('Erro ao criar mapa mental: ' + (error instanceof Error ? error.message : 'Erro desconhecido'));
+    } finally {
+      setIsLoading(false);
+    }
+  }, [currentMindMapId]);
+
+  const getMindMapsForNode = useCallback((nodeId: string) => {
+    const result = mindMapHistory
+      .filter(mindMap => mindMap.parentNodeId === nodeId)
+      .map(mindMap => ({
+        id: mindMap.id,
+        title: mindMap.title,
+        createdAt: mindMap.createdAt,
+        creationMethod: mindMap.creationMethod,
+      }));
+    
+    console.log(`[DEBUG] getMindMapsForNode(${nodeId}):`, result);
+    console.log(`[DEBUG] mindMapHistory:`, mindMapHistory);
+    
+    return result;
+  }, [mindMapHistory]);
+
+  const handleDeleteNode = useCallback((nodeId: string) => {
+    setNodes(prevNodes => {
+      // Função recursiva para coletar todos os nós filhos
+      const collectChildren = (parentId: string, allNodes: MindMapNode[]): string[] => {
+        const parent = allNodes.find(n => n.id === parentId);
+        if (!parent?.children) return [];
+        
+        const directChildren = parent.children;
+        const allChildren = [...directChildren];
+        
+        // Recursivamente coletar netos, bisnetos, etc.
+        directChildren.forEach(childId => {
+          allChildren.push(...collectChildren(childId, allNodes));
+        });
+        
+        return allChildren;
+      };
+
+      // Coletar todos os IDs para deletar (nó + todos os filhos)
+      const idsToDelete = [nodeId, ...collectChildren(nodeId, prevNodes)];
+      
+      // Filtrar os nós removendo todos os IDs coletados
+      const filteredNodes = prevNodes.filter(node => !idsToDelete.includes(node.id));
+      
+      // Remover referências dos nós pais para os nós deletados
+      return filteredNodes.map(node => ({
+        ...node,
+        children: node.children?.filter(childId => !idsToDelete.includes(childId))
+      }));
+    });
+    
+    // Fechar o painel lateral se o nó selecionado foi deletado
+    if (selectedNode?.id === nodeId) {
+      setSelectedNode(null);
+    }
+  }, [selectedNode]);
+
+  const handleEditNodeLabel = useCallback((nodeId: string, newLabel: string) => {
+    // Atualizar o label do nó nos nodes atuais
+    setNodes(prevNodes => 
+      prevNodes.map(node => 
+        node.id === nodeId 
+          ? { ...node, label: newLabel }
+          : node
+      )
+    );
+    
+    // Atualizar o label do nó no histórico de mapas mentais
+    setMindMapHistory(prevHistory => 
+      prevHistory.map(mindMap => 
+        mindMap.id === currentMindMapId
+          ? {
+              ...mindMap,
+              nodes: mindMap.nodes.map(node => 
+                node.id === nodeId 
+                  ? { ...node, label: newLabel }
+                  : node
+              ),
+              // Se for o nó central (level 0), atualizar também o título do mapa
+              title: mindMap.nodes.find(n => n.id === nodeId && n.level === 0) 
+                ? newLabel 
+                : mindMap.title
+            }
+          : mindMap
+      )
+    );
+  }, [currentMindMapId]);
+
+  const handleNavigateToMindMap = useCallback((mindMapId: string) => {
+    const mindMap = mindMapHistory.find(mm => mm.id === mindMapId);
+    if (mindMap) {
+      setCurrentMindMapId(mindMapId);
+      setNodes(mindMap.nodes);
+      setSelectedNode(null);
+    }
+  }, [mindMapHistory]);
+
+  const handleNavigateBack = useCallback(() => {
+    const currentMindMap = mindMapHistory.find(mm => mm.id === currentMindMapId);
+    if (currentMindMap?.parentMindMapId) {
+      handleNavigateToMindMap(currentMindMap.parentMindMapId);
+    }
+  }, [currentMindMapId, mindMapHistory, handleNavigateToMindMap]);
 
   return (
     <div className="h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 overflow-hidden">
@@ -221,58 +694,64 @@ export const MindMapApp: React.FC = () => {
           transition={{ duration: 0.3, ease: 'easeInOut' }}
           className="bg-white/50 dark:bg-slate-800/50 backdrop-blur-sm border-r border-slate-200/50 dark:border-slate-700/50 overflow-hidden"
         >
-          <div className="p-6 h-full flex flex-col">
-            {/* Tab Navigation */}
-            <div className="flex bg-slate-100 dark:bg-slate-700 rounded-lg p-1 mb-6">
-              <button
-                onClick={() => setActiveTab('upload')}
-                className={`flex-1 px-4 py-2 rounded-md text-sm font-medium transition-all ${
-                  activeTab === 'upload'
-                    ? 'bg-white dark:bg-slate-600 text-slate-800 dark:text-slate-200 shadow-sm'
-                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
-                }`}
-              >
-                <Upload className="w-4 h-4 inline mr-2" />
-                Upload PDF
-              </button>
-              <button
-                onClick={() => setActiveTab('text')}
-                className={`flex-1 px-4 py-2 rounded-md text-sm font-medium transition-all ${
-                  activeTab === 'text'
-                    ? 'bg-white dark:bg-slate-600 text-slate-800 dark:text-slate-200 shadow-sm'
-                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
-                }`}
-              >
-                <FileText className="w-4 h-4 inline mr-2" />
-                Text Input
-              </button>
-            </div>
+          <div className="h-full overflow-y-auto">
+            <div className="p-6 min-h-full flex flex-col">
+              {/* Tab Navigation */}
+              <div className="flex bg-slate-100 dark:bg-slate-700 rounded-lg p-1 mb-6 flex-shrink-0">
+                <button
+                  onClick={() => setActiveTab('upload')}
+                  className={`flex-1 px-4 py-2 rounded-md text-sm font-medium transition-all ${
+                    activeTab === 'upload'
+                      ? 'bg-white dark:bg-slate-600 text-slate-800 dark:text-slate-200 shadow-sm'
+                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
+                  }`}
+                >
+                  <Upload className="w-4 h-4 inline mr-2" />
+                  Upload PDF
+                </button>
+                <button
+                  onClick={() => setActiveTab('text')}
+                  className={`flex-1 px-4 py-2 rounded-md text-sm font-medium transition-all ${
+                    activeTab === 'text'
+                      ? 'bg-white dark:bg-slate-600 text-slate-800 dark:text-slate-200 shadow-sm'
+                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
+                  }`}
+                >
+                  <FileText className="w-4 h-4 inline mr-2" />
+                  Text Input
+                </button>
+              </div>
 
-            {/* Content */}
-            <div className="flex-1">
-              <AnimatePresence mode="wait">
-                {activeTab === 'upload' ? (
-                  <motion.div
-                    key="upload"
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -20 }}
-                    transition={{ duration: 0.2 }}
-                  >
-                    <FileUpload onFileUpload={handleFileUpload} isLoading={isLoading} />
-                  </motion.div>
-                ) : (
-                  <motion.div
-                    key="text"
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -20 }}
-                    transition={{ duration: 0.2 }}
-                  >
-                    <TextInput onSubmit={handleTextSubmit} isLoading={isLoading} />
-                  </motion.div>
-                )}
-              </AnimatePresence>
+              {/* Content */}
+              <div className="flex-1 min-h-0">
+                <AnimatePresence mode="wait">
+                  {activeTab === 'upload' ? (
+                    <motion.div
+                      key="upload"
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -20 }}
+                      transition={{ duration: 0.2 }}
+                    >
+                      <FileUpload onFileUpload={handleFileUpload} isLoading={isLoading} />
+                    </motion.div>
+                  ) : (
+                    <motion.div
+                      key="text"
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -20 }}
+                      transition={{ duration: 0.2 }}
+                    >
+                      <TextInput 
+                        onSubmit={handleTextSubmit} 
+                        onItemsSubmit={handleItemsSubmit}
+                        isLoading={isLoading} 
+                      />
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
             </div>
           </div>
         </motion.div>
@@ -286,6 +765,15 @@ export const MindMapApp: React.FC = () => {
               onNodeClick={handleNodeClick}
               onExpandNode={handleExpandNode}
               onCreateNewMindMap={handleCreateNewMindMap}
+              onCreateMindMapFromPDF={handleCreateMindMapFromPDF}
+              onCreateMindMapFromText={handleCreateMindMapFromText}
+              onDeleteNode={handleDeleteNode}
+              onEditNodeLabel={handleEditNodeLabel}
+              onNavigateToMindMap={handleNavigateToMindMap}
+              onNavigateBack={handleNavigateBack}
+              getMindMapsForNode={getMindMapsForNode}
+              mindMapHistory={mindMapHistory}
+              currentMindMapId={currentMindMapId}
               isLoading={isLoading}
             />
           ) : (
