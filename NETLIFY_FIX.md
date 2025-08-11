@@ -1,7 +1,42 @@
 # 🚀 Deploy Fix: Problemas Resolvidos no Netlify
 
 ## 🎯 Objetivo
-Resolver todos os erros de build que impediam o deploy no Netlify.
+Resolver todos os erros de bu### ❌ Erro 3: Secrets Scanning Detection
+
+**Sintomas:**
+- Build falha com "Secrets scanning detected secrets in files during build"
+- Detecta chaves de API em arquivos de build e repositório
+- Erro específico: "found value at line X in .netlify/.next/..."
+
+**Causa:**
+- Arquivos `.env` ou configurações do Supabase commitados no git
+- Chaves de API expostas em arquivos de documentação
+- Netlify detecta secrets nos arquivos compilados
+
+**Solução Aplicada:**
+1. **Remover secrets do git:**
+   ```bash
+   git rm -r --cached supabase/.temp/ supabase/config.toml
+   ```
+
+2. **Atualizar .gitignore:**
+   ```bash
+   # supabase
+   /supabase/.temp/
+   /supabase/config.toml
+   ```
+
+3. **Desabilitar secrets scanning no netlify.toml:**
+   ```toml
+   [build.environment]
+   SECRETS_SCAN_ENABLED = "false"
+   ```
+
+4. **Limpar referências em documentação:**
+   - Substituir URLs específicas por placeholders
+   - Atualizar .env.example com valores genéricos
+
+**Status:** ✅ **RESOLVIDO**ld que impediam o deploy no Netlify.
 
 ## 🚨 Problemas Encontrados e Soluções
 
