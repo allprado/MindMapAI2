@@ -24,13 +24,13 @@ async function getUserFromRequest(request: NextRequest) {
 }
 
 interface Props {
-  params: { id: string }
+  params: Promise<{ id: string }>
 }
 
 // GET - Obter mapa mental específico
 export async function GET(request: NextRequest, { params }: Props) {
   try {
-    const { id } = params
+    const { id } = await params
 
     const { data: mindmap, error } = await supabaseAdmin
       .from('mindmaps')

@@ -115,7 +115,7 @@ export const MindMapSelectionMenu: React.FC<MindMapSelectionMenuProps> = ({
             {/* Header */}
             <div className="px-4 py-3 bg-slate-50 dark:bg-slate-700/50 border-b border-slate-200 dark:border-slate-600">
               <h3 className="font-semibold text-slate-800 dark:text-slate-200 text-sm">
-                Mapas Mentais de "{nodeLabel}"
+                Mapas Mentais de &quot;{nodeLabel}&quot;
               </h3>
               <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
                 Selecione um mapa para navegar

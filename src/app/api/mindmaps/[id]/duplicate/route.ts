@@ -24,13 +24,13 @@ async function getUserFromRequest(request: NextRequest) {
 }
 
 interface Props {
-  params: { id: string }
+  params: Promise<{ id: string }>
 }
 
 // POST - Duplicar mapa mental
 export async function POST(request: NextRequest, { params }: Props) {
   try {
-    const { id } = params
+    const { id } = await params
     const user = await getUserFromRequest(request)
     
     if (!user) {

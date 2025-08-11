@@ -287,7 +287,7 @@ Diretrizes rigorosas:
       
       // Garantir IDs únicos para expansão
       const timestamp = Date.now();
-      nodes = nodes.map((node: any, index: number) => ({
+      nodes = nodes.map((node: MindMapNode, index: number) => ({
         ...node,
         id: `${parentNodeId}_${timestamp}_${index + 1}`, // ID único baseado no parent + timestamp + índice
         parent: parentNodeId // Garantir que o parent está correto
@@ -300,7 +300,7 @@ Diretrizes rigorosas:
       
       // Para novos mapas mentais (tanto primeiro quanto criados a partir de nós), 
       // corrigir estrutura hierárquica e não aplicar posições - deixar o Dagre fazer isso no frontend
-      let processedNodes = mindMapData.nodes.map((node: any) => ({
+      let processedNodes = mindMapData.nodes.map((node: MindMapNode) => ({
         ...node,
         x: 0, // Posições temporárias
         y: 0  // Serão recalculadas pelo Dagre

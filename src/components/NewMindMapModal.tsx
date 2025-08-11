@@ -80,7 +80,7 @@ export const NewMindMapModal: React.FC<NewMindMapModalProps> = ({
               Novo Mapa Mental
             </h2>
             <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
-              Baseado em: <span className="font-medium">"{nodeLabel}"</span>
+              Baseado em: <span className="font-medium">&quot;{nodeLabel}&quot;</span>
             </p>
           </div>
           <button
@@ -117,7 +117,7 @@ export const NewMindMapModal: React.FC<NewMindMapModalProps> = ({
                         Gerar Automaticamente
                       </h4>
                       <p className="text-sm text-slate-600 dark:text-slate-400">
-                        A IA criará um mapa detalhado sobre "{nodeLabel}"
+                        A IA criará um mapa detalhado sobre &quot;{nodeLabel}&quot;
                       </p>
                     </div>
                   </div>
