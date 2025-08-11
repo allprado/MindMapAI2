@@ -74,7 +74,7 @@ fetch('/api/mindmaps', {
 ```
 
 ### No Supabase Dashboard:
-1. **Acesse:** https://supabase.com/dashboard/project/vkqznfhjefdxmpsvgdyk/editor
+1. **Acesse:** https://supabase.com/dashboard/project/YOUR_PROJECT_ID/editor
 2. **Verifique tabelas:**
    - `profiles`: Usuários criados
    - `mindmaps`: Mapas salvos com `user_id` correto

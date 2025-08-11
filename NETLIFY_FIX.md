@@ -29,6 +29,10 @@ Resolver todos os erros de build que impediam o deploy no Netlify.
 **Erro**: `"` can be escaped with `&quot;`
 **Solução**: ✅ Substituição de `"` por `&quot;` em componentes React
 
+### 7. ❌ Html import fora de pages/_document
+**Erro**: `Error: <Html> should not be imported outside of pages/_document`
+**Solução**: ✅ Criado `pages/_document.tsx` + `netlify.toml` + `.nvmrc`
+
 ## 📝 Arquivos Modificados
 
 ### Dependências
@@ -49,6 +53,11 @@ Resolver todos os erros de build que impediam o deploy no Netlify.
 
 ### Limpeza
 - `src/app/api/test-mindmap/route.ts` ← Removido (arquivo vazio)
+
+### Netlify Compatibility
+- `pages/_document.tsx` ← Criado para resolver erro Html import
+- `netlify.toml` ← Configuração do Netlify
+- `.nvmrc` ← Versão do Node.js específica
 
 ## ✅ Resultado Final
 
