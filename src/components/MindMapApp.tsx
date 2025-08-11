@@ -1,13 +1,19 @@
 'use client';
 
 import React, { useState, useCallback } from 'react';
-import { Upload, FileText, Brain, Sparkles } from 'lucide-react';
+import { Upload, FileText, Brain, Sparkles, User, LogOut, Save, BookOpen } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MindMapFlow } from './MindMapFlow';
 import { FileUpload } from './FileUpload';
 import { TextInput } from './TextInput';
 import { SidePanel } from './SidePanel';
+import { AuthModal } from './AuthModal';
+import { SavedMindMaps } from './SavedMindMaps';
+import { useAuth } from '@/contexts/AuthContext';
+import { MindMapService } from '@/lib/mindmap-service';
+import { supabase } from '@/lib/supabase';
 import { MindMapNode, MindMapHistory } from '@/types';
+import { MindMap } from '@/lib/supabase';
 
 // Função para extrair o título do texto de itens
 const extractTitleFromItems = (itemsText: string): string => {
@@ -124,6 +130,152 @@ export const MindMapApp: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'upload' | 'text'>('upload');
   const [mindMapHistory, setMindMapHistory] = useState<MindMapHistory[]>([]);
   const [currentMindMapId, setCurrentMindMapId] = useState<string | null>(null);
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [showSavedMindMaps, setShowSavedMindMaps] = useState(false);
+  const [currentSavedMindMap, setCurrentSavedMindMap] = useState<MindMap | null>(null);
+
+  const { user, signOut } = useAuth();
+
+  // Helper function to get headers with authentication
+  const getAuthHeaders = async (): Promise<HeadersInit> => {
+    const { data: { session } } = await supabase.auth.getSession()
+    const headers: HeadersInit = {
+      'Content-Type': 'application/json'
+    }
+    
+    if (session?.access_token) {
+      headers['Authorization'] = `Bearer ${session.access_token}`
+    }
+    
+    return headers
+  }
+
+  // Função para salvar todos os mapas mentais da hierarquia
+  const handleSaveMindMap = useCallback(async () => {
+    if (!user) {
+      setShowAuthModal(true);
+      return;
+    }
+
+    if (nodes.length === 0 && mindMapHistory.length === 0) {
+      return;
+    }
+
+    console.log('🔄 Salvando hierarquia completa de mapas mentais...');
+    console.log('📊 Total de mapas no histórico:', mindMapHistory.length);
+    console.log('📊 Mapa atual - nós:', nodes.length);
+    
+    try {
+      setIsLoading(true);
+      const headers = await getAuthHeaders();
+      
+      // Salvar todos os mapas do histórico
+      for (const mindMap of mindMapHistory) {
+        const rootNode = mindMap.nodes.find(n => n.level === 0);
+        const title = rootNode?.label || mindMap.title || 'Mapa Mental Sem Título';
+        
+        console.log(`💾 Salvando mapa: ${title} (ID: ${mindMap.id})`);
+        
+        // Verificar se é o mapa principal (sem parentMindMapId)
+        const isMainMap = !mindMap.parentMindMapId;
+        
+        if (isMainMap && currentSavedMindMap) {
+          // Atualizar mapa principal existente
+          console.log('📝 Atualizando mapa principal:', currentSavedMindMap.id);
+          const response = await fetch(`/api/mindmaps/${currentSavedMindMap.id}`, {
+            method: 'PUT',
+            headers,
+            body: JSON.stringify({
+              title,
+              nodes: mindMap.nodes,
+              edges: [],
+            })
+          });
+          
+          if (response.ok) {
+            const data = await response.json();
+            console.log('✅ Mapa principal atualizado:', data.id);
+          } else {
+            const error = await response.json();
+            console.error('❌ Erro ao atualizar mapa principal:', error);
+          }
+        } else {
+          // Criar novo mapa (principal ou secundário)
+          console.log(`🆕 Criando ${isMainMap ? 'mapa principal' : 'mapa secundário'}`);
+          const response = await fetch('/api/mindmaps', {
+            method: 'POST',
+            headers,
+            body: JSON.stringify({
+              title,
+              description: rootNode?.description,
+              nodes: mindMap.nodes,
+              edges: [],
+              isPublic: false,
+              // Metadados para identificar mapas secundários
+              tags: mindMap.parentMindMapId ? [`parent:${mindMap.parentMindMapId}`, `node:${mindMap.parentNodeId}`] : [],
+            })
+          });
+          
+          if (response.ok) {
+            const data = await response.json();
+            console.log(`✅ ${isMainMap ? 'Mapa principal' : 'Mapa secundário'} criado:`, data.id);
+            
+            if (isMainMap) {
+              setCurrentSavedMindMap(data);
+            }
+          } else {
+            const error = await response.json();
+            console.error(`❌ Erro ao criar ${isMainMap ? 'mapa principal' : 'mapa secundário'}:`, error);
+          }
+        }
+      }
+      
+      console.log('🎉 Hierarquia completa salva com sucesso!');
+      alert(`Hierarquia completa salva! Total: ${mindMapHistory.length} mapa(s) mental(is)`);
+      
+    } catch (error) {
+      console.error('💥 Erro no salvamento da hierarquia:', error);
+      alert('Erro ao salvar hierarquia de mapas mentais');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [user, nodes, mindMapHistory, currentSavedMindMap]);
+
+  // Função para carregar um mapa mental salvo
+  const handleLoadMindMap = useCallback((mindMap: MindMap) => {
+    console.log('📂 Carregando mapa mental:', mindMap.title);
+    console.log('📊 Nós carregados:', mindMap.nodes.length);
+    console.log('🌳 Estrutura carregada:', mindMap.nodes.map(n => ({ id: n.id, label: n.label, parent: n.parent, children: n.children })));
+    
+    setNodes(mindMap.nodes);
+    setCurrentSavedMindMap(mindMap);
+    setCurrentMindMapId(`loaded-${mindMap.id}`);
+    
+    // Criar entrada no histórico
+    const newMindMapHistory: MindMapHistory = {
+      id: `loaded-${mindMap.id}`,
+      nodes: mindMap.nodes,
+      title: mindMap.title,
+      createdAt: new Date(mindMap.created_at),
+    };
+    
+    setMindMapHistory([newMindMapHistory]);
+  }, []);
+
+  // Função para criar novo mapa mental (limpar tudo)
+  const handleCreateNewMindMapFromScratch = useCallback(() => {
+    setNodes([]);
+    setSelectedNode(null);
+    setMindMapHistory([]);
+    setCurrentMindMapId(null);
+    setCurrentSavedMindMap(null);
+  }, []);
+
+  // Função para fazer logout
+  const handleSignOut = useCallback(async () => {
+    await signOut();
+    setCurrentSavedMindMap(null);
+  }, [signOut]);
 
   const handleTextSubmit = useCallback(async (text: string) => {
     setIsLoading(true);
@@ -316,6 +468,16 @@ export const MindMapApp: React.FC = () => {
         console.log('Nós finais:', updatedNodes);
         return updatedNodes;
       });
+      
+      // 🔥 AUTO-SAVE: Salvar automaticamente após expansão do nó
+      console.log('🔥 AUTO-SAVE: Salvando mapa após expansão de nó...');
+      setTimeout(() => {
+        if (currentSavedMindMap) {
+          console.log('🔥 AUTO-SAVE: Executando salvamento automático...');
+          handleSaveMindMap();
+        }
+      }, 1000); // Delay para garantir que o estado foi atualizado
+      
     } catch (error) {
       console.error('Erro ao expandir nó:', error);
       alert('Erro ao expandir nó: ' + (error instanceof Error ? error.message : 'Erro desconhecido'));
@@ -397,13 +559,21 @@ export const MindMapApp: React.FC = () => {
       setCurrentMindMapId(newMindMapId);
       setNodes(data.nodes);
       setSelectedNode(null);
+      
+      // 🔥 AUTO-SAVE: Salvar hierarquia completa após criar novo mapa mental
+      console.log('🔥 AUTO-SAVE: Salvando hierarquia após criação de novo mapa...');
+      setTimeout(() => {
+        console.log('🔥 AUTO-SAVE: Executando salvamento automático da hierarquia...');
+        handleSaveMindMap();
+      }, 1500); // Delay para garantir que o estado foi atualizado
+      
     } catch (error) {
       console.error('Erro ao criar novo mapa mental:', error);
       alert('Erro ao criar novo mapa mental: ' + (error instanceof Error ? error.message : 'Erro desconhecido'));
     } finally {
       setIsLoading(false);
     }
-  }, [currentMindMapId]);
+  }, [currentMindMapId, handleSaveMindMap]);
 
   const handleCreateMindMapFromPDF = useCallback(async (file: File, nodeLabel: string, parentNodeId: string) => {
     setIsLoading(true);
@@ -473,13 +643,21 @@ export const MindMapApp: React.FC = () => {
       setCurrentMindMapId(newMindMapId);
       setNodes(data.nodes);
       setSelectedNode(null);
+      
+      // 🔥 AUTO-SAVE: Salvar hierarquia completa após criar mapa a partir de PDF
+      console.log('🔥 AUTO-SAVE: Salvando hierarquia após criação de mapa a partir de PDF...');
+      setTimeout(() => {
+        console.log('🔥 AUTO-SAVE: Executando salvamento automático da hierarquia...');
+        handleSaveMindMap();
+      }, 1500); // Delay para garantir que o estado foi atualizado
+      
     } catch (error) {
       console.error('Erro ao processar PDF:', error);
       alert('Erro ao processar PDF: ' + (error instanceof Error ? error.message : 'Erro desconhecido'));
     } finally {
       setIsLoading(false);
     }
-  }, [currentMindMapId]);
+  }, [currentMindMapId, handleSaveMindMap]);
 
   const handleCreateMindMapFromText = useCallback(async (text: string, nodeLabel: string, parentNodeId: string, isItems?: boolean) => {
     setIsLoading(true);
@@ -559,13 +737,21 @@ export const MindMapApp: React.FC = () => {
       setCurrentMindMapId(newMindMapId);
       setNodes(nodes);
       setSelectedNode(null);
+      
+      // 🔥 AUTO-SAVE: Salvar hierarquia completa após criar mapa a partir de texto
+      console.log('🔥 AUTO-SAVE: Salvando hierarquia após criação de mapa a partir de texto...');
+      setTimeout(() => {
+        console.log('🔥 AUTO-SAVE: Executando salvamento automático da hierarquia...');
+        handleSaveMindMap();
+      }, 1500); // Delay para garantir que o estado foi atualizado
+      
     } catch (error) {
       console.error('Erro ao criar mapa mental:', error);
       alert('Erro ao criar mapa mental: ' + (error instanceof Error ? error.message : 'Erro desconhecido'));
     } finally {
       setIsLoading(false);
     }
-  }, [currentMindMapId]);
+  }, [currentMindMapId, handleSaveMindMap]);
 
   const getMindMapsForNode = useCallback((nodeId: string) => {
     const result = mindMapHistory
@@ -671,17 +857,77 @@ export const MindMapApp: React.FC = () => {
     <div className="h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 overflow-hidden">
       {/* Header */}
       <header className="bg-white/80 dark:bg-slate-800/80 backdrop-blur-lg border-b border-slate-200/50 dark:border-slate-700/50 px-6 py-4">
-        <div className="flex items-center space-x-3">
-          <div className="p-2 bg-gradient-to-br from-purple-500 to-pink-500 rounded-lg">
-            <Brain className="w-6 h-6 text-white" />
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-3">
+            <div className="p-2 bg-gradient-to-br from-purple-500 to-pink-500 rounded-lg">
+              <Brain className="w-6 h-6 text-white" />
+            </div>
+            <div>
+              <h1 className="text-xl font-bold text-slate-800 dark:text-slate-200">
+                MindMap AI
+              </h1>
+              <p className="text-sm text-slate-600 dark:text-slate-400">
+                Powered by Gemini 2.0 Flash
+              </p>
+            </div>
           </div>
-          <div>
-            <h1 className="text-xl font-bold text-slate-800 dark:text-slate-200">
-              MindMap AI
-            </h1>
-            <p className="text-sm text-slate-600 dark:text-slate-400">
-              Powered by Gemini 2.0 Flash
-            </p>
+          
+          <div className="flex items-center space-x-3">
+            {/* Botões de ação */}
+            {nodes.length > 0 && (
+              <>
+                <button
+                  onClick={handleSaveMindMap}
+                  disabled={isLoading}
+                  className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <Save size={16} />
+                  <span>{currentSavedMindMap ? 'Atualizar' : 'Salvar'}</span>
+                </button>
+                <button
+                  onClick={handleCreateNewMindMapFromScratch}
+                  className="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition-colors flex items-center space-x-2"
+                >
+                  <Sparkles size={16} />
+                  <span>Novo</span>
+                </button>
+              </>
+            )}
+            
+            <button
+              onClick={() => setShowSavedMindMaps(true)}
+              className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors flex items-center space-x-2"
+            >
+              <BookOpen size={16} />
+              <span>Meus Mapas</span>
+            </button>
+            
+            {/* Área de usuário */}
+            {user ? (
+              <div className="flex items-center space-x-3">
+                <div className="flex items-center space-x-2 bg-slate-100 dark:bg-slate-700 px-3 py-2 rounded-lg">
+                  <User size={16} className="text-slate-600 dark:text-slate-400" />
+                  <span className="text-sm text-slate-700 dark:text-slate-300">
+                    {user.email}
+                  </span>
+                </div>
+                <button
+                  onClick={handleSignOut}
+                  className="text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+                  title="Sair"
+                >
+                  <LogOut size={16} />
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => setShowAuthModal(true)}
+                className="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition-colors flex items-center space-x-2"
+              >
+                <User size={16} />
+                <span>Entrar</span>
+              </button>
+            )}
           </div>
         </div>
       </header>
@@ -827,6 +1073,19 @@ export const MindMapApp: React.FC = () => {
           )}
         </AnimatePresence>
       </div>
+      
+      {/* Modais */}
+      <AuthModal 
+        isOpen={showAuthModal} 
+        onClose={() => setShowAuthModal(false)} 
+      />
+      
+      <SavedMindMaps
+        isOpen={showSavedMindMaps}
+        onClose={() => setShowSavedMindMaps(false)}
+        onLoadMindMap={handleLoadMindMap}
+        onCreateNew={handleCreateNewMindMapFromScratch}
+      />
     </div>
   );
 };

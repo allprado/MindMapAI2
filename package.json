@@ -20,9 +20,14 @@
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
+    "@supabase/auth-ui-react": "^0.4.7",
+    "@supabase/auth-ui-shared": "^0.1.8",
+    "@supabase/supabase-js": "^2.54.0",
     "@tailwindcss/typography": "^0.5.16",
+    "@types/dagre": "^0.7.53",
     "@types/multer": "^2.0.0",
     "@xyflow/react": "^12.8.2",
+    "dagre": "^0.8.5",
     "framer-motion": "^12.23.12",
     "lucide-react": "^0.537.0",
     "multer": "^2.0.2",
@@ -40,6 +45,7 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "15.4.6",
+    "supabase": "^2.33.9",
     "tailwindcss": "^4",
     "typescript": "^5"
   }
