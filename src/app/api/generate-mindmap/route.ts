@@ -241,7 +241,12 @@ Retorne APENAS um JSON válido:
       nodes = nodes.map((node: MindMapNode, index: number) => ({
         ...node,
         id: `${parentNodeId}_${timestamp}_${index + 1}`, // ID único baseado no parent + timestamp + índice
-        parent: parentNodeId // Garantir que o parent está correto
+        parent: parentNodeId, // Garantir que o parent está correto
+        // Garantir que nós expandidos não tenham propriedades de mapas filhos
+        hasChildMindMaps: false,
+        hasChildMindMap: false,
+        childMindMapIds: undefined,
+        childMindMapId: undefined
       }));
       
       console.log('Nós para expansão com IDs únicos:', nodes);
@@ -254,7 +259,12 @@ Retorne APENAS um JSON válido:
       let processedNodes = mindMapData.nodes.map((node: MindMapNode) => ({
         ...node,
         x: 0, // Posições temporárias
-        y: 0  // Serão recalculadas pelo Dagre
+        y: 0, // Serão recalculadas pelo Dagre
+        // Garantir que nós gerados pela IA não tenham propriedades de mapas filhos
+        hasChildMindMaps: false,
+        hasChildMindMap: false,
+        childMindMapIds: undefined,
+        childMindMapId: undefined
       }));
       
       // Corrigir estrutura hierárquica para garantir que Dagre funcione corretamente
@@ -328,10 +338,15 @@ function fixHierarchicalStructure(nodes: MindMapNode[]): MindMapNode[] {
     nodesByLevel.get(level)!.push(node);
   });
 
-  // Limpar todos os relacionamentos existentes
+  // Limpar todos os relacionamentos existentes e propriedades de mapas filhos
   nodes.forEach(node => {
     node.children = [];
     node.parent = undefined;
+    // Garantir que nós gerados pela IA não tenham propriedades de mapas filhos
+    node.hasChildMindMaps = false;
+    node.hasChildMindMap = false;
+    node.childMindMapIds = undefined;
+    node.childMindMapId = undefined;
   });
 
   // Garantir que temos apenas um nó central (level 0)

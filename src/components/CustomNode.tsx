@@ -394,18 +394,27 @@ export const CustomNode: React.FC<NodeProps> = ({ data, selected }) => {
         )}
       </AnimatePresence>
 
-      {/* Navigate to Child MindMap Button - Always visible when has child mindmap */}
+      {/* Navigate to Child MindMap Button - Only visible when actually has child mindmaps */}
       <AnimatePresence>
         {(() => {
+          // Verificar propriedades do nó
           const hasChildMindMaps = node.hasChildMindMaps || node.hasChildMindMap;
-          const mindMapsFromFunction = (getMindMapsForNode?.(node.id) || []).length > 0;
-          const shouldShowLink = hasChildMindMaps || mindMapsFromFunction;
           
-          if (node.id === '1') { // Log apenas para o nó raiz para não poluir o console
-            console.log(`[DEBUG] Node ${node.id} - shouldShowLink:`, shouldShowLink);
-            console.log(`[DEBUG] Node ${node.id} - hasChildMindMaps:`, hasChildMindMaps);
-            console.log(`[DEBUG] Node ${node.id} - mindMapsFromFunction:`, mindMapsFromFunction);
-            console.log(`[DEBUG] Node ${node.id} - getMindMapsForNode result:`, getMindMapsForNode?.(node.id));
+          // Verificar mapas mentais reais através da função
+          const childMindMaps = getMindMapsForNode?.(node.id) || [];
+          const mindMapsFromFunction = childMindMaps.length > 0;
+          
+          // Apenas mostrar o link se realmente há mapas mentais filhos
+          // e se as propriedades do nó indicam que deve ter
+          const shouldShowLink = hasChildMindMaps && mindMapsFromFunction;
+          
+          // Debug para investigar problemas
+          if ((hasChildMindMaps && !mindMapsFromFunction) || (!hasChildMindMaps && mindMapsFromFunction)) {
+            console.log(`[DEBUG] Inconsistência detectada no nó ${node.id} (${label}):`);
+            console.log(`  - hasChildMindMaps: ${hasChildMindMaps}`);
+            console.log(`  - mindMapsFromFunction: ${mindMapsFromFunction}`);
+            console.log(`  - childMindMaps:`, childMindMaps);
+            console.log(`  - node:`, node);
           }
           
           return shouldShowLink;
