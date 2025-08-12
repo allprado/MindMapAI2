@@ -490,16 +490,23 @@ export const MindMapApp: React.FC = () => {
     console.log('Criando novo mapa mental para:', nodeLabel);
     setIsLoading(true);
     try {
-      // Unificar a chamada para ser idêntica à handleTextSubmit
+      // Criar novo mapa mental detalhado com a flag apropriada e timeout
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 60000); // 60 segundos timeout
+
       const response = await fetch('/api/generate-mindmap', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ 
-          content: nodeLabel 
+          content: nodeLabel,
+          newMindMap: true  // Flag para indicar criação de novo mapa mental detalhado
         }),
+        signal: controller.signal
       });
+
+      clearTimeout(timeoutId);
 
       if (!response.ok) {
         throw new Error('Falha ao criar novo mapa mental');
@@ -569,7 +576,15 @@ export const MindMapApp: React.FC = () => {
       
     } catch (error) {
       console.error('Erro ao criar novo mapa mental:', error);
-      alert('Erro ao criar novo mapa mental: ' + (error instanceof Error ? error.message : 'Erro desconhecido'));
+      if (error instanceof Error) {
+        if (error.name === 'AbortError') {
+          alert('A criação do mapa mental demorou muito e foi cancelada. Tente novamente com um tópico mais específico.');
+        } else {
+          alert('Erro ao criar novo mapa mental: ' + error.message);
+        }
+      } else {
+        alert('Erro desconhecido ao criar novo mapa mental');
+      }
     } finally {
       setIsLoading(false);
     }

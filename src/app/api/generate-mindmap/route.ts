@@ -31,6 +31,9 @@ function detectTopicFormat(text: string): boolean {
 }
 
 export async function POST(request: NextRequest) {
+  const startTime = Date.now();
+  console.log('🚀 API chamada iniciada:', new Date().toISOString());
+  
   try {
     // Verificar se a API key está configurada
     if (!process.env.GOOGLE_API_KEY || process.env.GOOGLE_API_KEY === 'your_google_ai_api_key_here') {
@@ -64,6 +67,9 @@ export async function POST(request: NextRequest) {
       : content;
 
     const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash-exp' });
+
+    console.log('⏱️ Iniciando geração com IA...', new Date().toISOString());
+    const aiStartTime = Date.now();
 
     let prompt: string;
     
@@ -102,64 +108,33 @@ Exemplo de estrutura:
 }`;
     } else if (newMindMap) {
       console.log('🆕 CONDIÇÃO: Novo mapa mental (com flag newMindMap)');
-      // Prompt para criar um novo mapa mental completo e detalhado
-      prompt = `Crie um mapa mental MUITO DETALHADO e completo sobre o seguinte tópico:
+      // Prompt otimizado para criar um novo mapa mental
+      prompt = `Crie um mapa mental detalhado sobre: ${truncatedContent}
 
-Tópico: ${truncatedContent}
+Instruções:
+1. Nó central (level 0): Use o tópico como título principal
+2. Ramos principais (level 1): Crie 5-7 ramos cobrindo aspectos fundamentais
+3. Sub-ramos (level 2): Para cada ramo principal, adicione 3-4 subtópicos
+4. Detalhes (level 3): Adicione exemplos e características específicas
 
-Instruções específicas para criar um mapa mental rico em detalhes:
+Use cores: level 0 #8b5cf6, level 1 #3b82f6, level 2 #10b981, level 3 #f59e0b, level 4 #ef4444
 
-1. Use o tópico como nó central (level 0) com description abrangente
-2. Crie 6-8 ramos principais (level 1) cobrindo TODOS os aspectos fundamentais do tópico:
-   - Conceitos e definições básicas
-   - História e evolução
-   - Tipos e classificações
-   - Principais áreas/componentes/ramos
-   - Aplicações práticas
-   - Metodologias e técnicas
-   - Impactos e consequências
-   - Futuro e tendências
-   - Ética e considerações sociais (quando aplicável)
-
-3. Para cada ramo principal (level 1), crie 3-5 sub-ramos (level 2) com:
-   - Subtópicos específicos e relevantes
-   - Conceitos-chave dentro da área
-   - Metodologias ou abordagens específicas
-   - Exemplos práticos importantes
-
-4. Para sub-ramos importantes (level 2), adicione nós filhos (level 3) com:
-   - Detalhes técnicos específicos
-   - Exemplos concretos
-   - Casos de uso
-   - Ferramentas ou tecnologias específicas
-   - Características distintivas
-
-5. Quando relevante, adicione um quarto nível (level 4) para:
-   - Exemplos muito específicos
-   - Detalhes técnicos avançados
-   - Casos práticos
-
-EXEMPLO DE ESTRUTURA DETALHADA:
-
-Para "Inteligência Artificial", crie ramos como:
-- "Conceitos Básicos" → "Definição de IA", "História", "Tipos de IA", "Objetivos"
-- "Ramos da IA" → "Machine Learning", "Deep Learning", "NLP", "Visão Computacional", "Robótica"
-- "Machine Learning" → "Supervisionado", "Não Supervisionado", "Reforço", "Algoritmos"
-- "Aplicações" → "Saúde", "Finanças", "Transporte", "Marketing", "Segurança"
-- "Ética e Impactos" → "Privacidade", "Viés Algorítmico", "Mercado de Trabalho", "Regulação"
-- "Tecnologias" → "Python", "TensorFlow", "PyTorch", "Big Data"
-- "Futuro" → "IA Geral", "Singularidade", "Tendências"
-
-Retorne APENAS um JSON válido com array "nodes" contendo objetos com id, label, description, level, x, y, color, children e parent.
-
-Diretrizes rigorosas:
-- Use rótulos precisos e informativos (máximo 4-5 palavras)
-- Forneça descriptions RICAS e educativas (3-5 frases explicativas)
-- Use cores: level 0 #8b5cf6, level 1 #3b82f6, level 2 #10b981, level 3 #f59e0b, level 4 #ef4444
-- Crie 35-50 nós no total para máximo detalhamento
-- Garanta hierarquia clara e relacionamentos corretos
-- IDs sequenciais numéricos como strings
-- Cada description deve ser informativa e educativa, não apenas repetir o label`;
+Retorne APENAS um JSON válido:
+{
+  "nodes": [
+    {
+      "id": "1",
+      "label": "Título do Nó",
+      "description": "Descrição educativa detalhada...",
+      "level": 0,
+      "x": 0,
+      "y": 0,
+      "color": "#8b5cf6",
+      "children": [],
+      "parent": undefined
+    }
+  ]
+}`;
     } else {
       console.log('🥇 CONDIÇÃO: Primeira geração (sem flags especiais)');
       // Detectar se o texto já está em formato de tópicos
@@ -167,90 +142,64 @@ Diretrizes rigorosas:
       
       if (isTopicFormat) {
         console.log('📋 SUBCONDIÇÃO: Formato de tópicos detectado');
-        prompt = `O texto fornecido já está em formato de tópicos hierárquicos. Converta esta estrutura em um mapa mental DETALHADO, preservando a hierarquia original e EXPANDINDO com informações educativas.
-
-Texto em formato de tópicos: ${truncatedContent}
-
-Instruções específicas:
-1. Use o primeiro tópico principal ou título como nó central (level 0)
-2. Mantenha a hierarquia EXATA dos tópicos originais
-3. Preserve o texto original dos tópicos como labels
-4. Para cada tópico, crie descriptions RICAS e educativas (3-5 frases) que:
-   - Expliquem o conceito em detalhes
-   - Forneçam contexto adicional
-   - Incluam exemplos ou aplicações práticas
-   - Adicionem valor educativo além do label
-5. Mantenha a estrutura pai-filho conforme a indentação/numeração original
-6. Se possível, adicione subtópicos educativos adicionais quando apropriado
-
-IMPORTANTE: Mesmo preservando a estrutura original, as descriptions devem ser MUITO informativas e educativas.
-
-Retorne APENAS um JSON válido com array "nodes" contendo objetos com id, label, description, level, x, y, color, children e parent.
-
-Diretrizes importantes:
-- Use EXATAMENTE os textos originais como labels, respeitando a hierarquia
-- Forneça descriptions RICAS e educativas (3-5 frases explicativas)
-- Use cores: level 0 #8b5cf6, level 1 #3b82f6, level 2 #10b981, level 3 #f59e0b, level 4 #ef4444
-- Mínimo de 25-35 nós para máximo detalhamento
-- Garanta relacionamentos pai-filho adequados
-- IDs sequenciais numéricos como strings
-- Descriptions devem ser informativas e educativas, agregando valor real`;
-      } else {
-        console.log('📝 SUBCONDIÇÃO: Texto livre detectado');
-        prompt = `Analise profundamente o seguinte texto e crie um mapa mental MUITO DETALHADO e estruturado.
+        prompt = `Converta esta estrutura de tópicos em um mapa mental:
 
 Texto: ${truncatedContent}
 
-Instruções para análise profunda e criação detalhada:
+Instruções:
+1. Use o primeiro tópico como nó central (level 0)
+2. Mantenha a hierarquia original dos tópicos
+3. Preserve os textos originais como labels
+4. Adicione descriptions educativas para cada tópico
 
-1. Identifique o tópico central principal (level 0) e forneça description abrangente
-2. Analise o texto para extrair 6-8 ramos principais (level 1) que representem:
-   - Conceitos fundamentais mencionados
-   - Temas principais abordados
-   - Categorias ou classificações presentes
-   - Processos ou metodologias descritos
-   - Aplicações ou exemplos citados
-   - Causas e consequências mencionadas
-   - Aspectos teóricos e práticos
-   - Implicações ou impactos discutidos
+Use cores: level 0 #8b5cf6, level 1 #3b82f6, level 2 #10b981, level 3 #f59e0b
 
-3. Para cada ramo principal (level 1), crie 3-5 sub-ramos (level 2) extraindo:
-   - Subtópicos específicos do texto
-   - Detalhes importantes mencionados
-   - Exemplos concretos citados
-   - Características ou propriedades descritas
-   - Métodos ou técnicas explicados
+Retorne APENAS um JSON válido:
+{
+  "nodes": [
+    {
+      "id": "1",
+      "label": "Texto Original do Tópico",
+      "description": "Explicação educativa detalhada...",
+      "level": 0,
+      "x": 0,
+      "y": 0,
+      "color": "#8b5cf6",
+      "children": [],
+      "parent": undefined
+    }
+  ]
+}`;
+      } else {
+        console.log('📝 SUBCONDIÇÃO: Texto livre detectado');
+        prompt = `Analise o texto e crie um mapa mental estruturado:
 
-4. Para sub-ramos relevantes (level 2), adicione nós filhos (level 3) com:
-   - Detalhes específicos do texto
-   - Exemplos práticos mencionados
-   - Dados ou estatísticas citados
-   - Casos específicos descritos
-   - Ferramentas ou recursos mencionados
+Texto: ${truncatedContent}
 
-5. Quando o texto permitir, adicione level 4 para:
-   - Detalhes muito específicos
-   - Exemplos concretos únicos
-   - Aspectos técnicos avançados
+Instruções:
+1. Identifique o tópico central principal (level 0)
+2. Extraia 5-7 ramos principais (level 1) dos conceitos fundamentais
+3. Para cada ramo, crie 3-4 sub-ramos (level 2) com detalhes específicos
+4. Adicione level 3 quando necessário para exemplos concretos
 
-ESTRATÉGIA DE EXTRAÇÃO:
-- Leia CUIDADOSAMENTE todo o texto
-- Identifique palavras-chave e conceitos principais
-- Extraia informações implícitas e explícitas
-- Organize em hierarquia lógica e educativa
-- Mantenha fidelidade ao conteúdo original
-- Adicione contexto educativo nas descriptions
+Use cores: level 0 #8b5cf6, level 1 #3b82f6, level 2 #10b981, level 3 #f59e0b
 
-Retorne APENAS um JSON válido com array "nodes" contendo objetos com id, label, description, level, x, y, color, children e parent.
-
-Diretrizes rigorosas:
-- Use rótulos precisos baseados no texto (máximo 4-5 palavras)
-- Forneça descriptions EDUCATIVAS e detalhadas (3-5 frases)
-- Use cores: level 0 #8b5cf6, level 1 #3b82f6, level 2 #10b981, level 3 #f59e0b, level 4 #ef4444
-- Crie 30-45 nós para máximo aproveitamento do conteúdo
-- Garanta hierarquia lógica baseada no texto
-- IDs sequenciais numéricos como strings
-- Descriptions devem agregar valor educativo, não apenas repetir labels`;
+Retorne APENAS um JSON válido:
+{
+  "nodes": [
+    {
+      "id": "1",
+      "label": "Tópico Central",
+      "description": "Descrição baseada no texto...",
+      "level": 0,
+      "x": 0,
+      "y": 0,
+      "color": "#8b5cf6",
+      "children": [],
+      "parent": undefined
+    }
+  ]
+}`;
       }
     }
 
@@ -258,7 +207,9 @@ Diretrizes rigorosas:
     const response = await result.response;
     const text = response.text();
 
-    console.log('Resposta da IA:', text);
+    const aiEndTime = Date.now();
+    console.log(`⏱️ IA completou em ${aiEndTime - aiStartTime}ms`);
+    console.log('📝 Resposta da IA (primeiros 500 chars):', text.substring(0, 500));
 
     // Extrair JSON da resposta
     let mindMapData;
@@ -318,6 +269,8 @@ Diretrizes rigorosas:
     }
 
     console.log('Retornando nós:', nodes);
+    const totalTime = Date.now() - startTime;
+    console.log(`🏁 API completada em ${totalTime}ms`);
     return NextResponse.json({ nodes });
   } catch (error) {
     console.error('Erro ao gerar mapa mental:', error);
