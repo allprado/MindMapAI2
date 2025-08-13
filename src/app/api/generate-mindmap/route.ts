@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { GoogleGenerativeAI } from '@google/generative-ai';
-import { MindMapNode } from '@/types';
+import { MindMapNode } from '../../../types';
 
 const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY || '');
 

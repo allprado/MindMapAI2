@@ -19,6 +19,33 @@ body {
   overflow: hidden;
 }
 
+/* Custom heights for mind map nodes */
+.h-18 {
+  height: 4.5rem;
+}
+
+.h-20 {
+  height: 5rem;
+}
+
+/* Node text container styles */
+.node-text-container {
+  max-height: 100%;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+/* Multi-line text ellipsis */
+.text-ellipsis-multiline {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 /* ReactFlow custom styles */
 .react-flow__node {
   font-family: inherit;

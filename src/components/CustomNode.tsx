@@ -100,21 +100,23 @@ export const CustomNode: React.FC<NodeProps> = ({ data, selected }) => {
   const getNodeSize = () => {
     // Calcular altura dinâmica baseada no comprimento do texto
     const textLength = label.length;
-    let dynamicHeight = 'h-16'; // altura padrão
+    let dynamicHeight = 'h-18'; // altura padrão aumentada
     
-    if (textLength > 50) {
+    if (textLength > 30) {
+      dynamicHeight = 'h-20';
+    } else if (textLength > 50) {
       dynamicHeight = 'h-24';
     } else if (textLength > 80) {
-      dynamicHeight = 'h-32';
+      dynamicHeight = 'h-28';
     } else if (textLength > 120) {
-      dynamicHeight = 'h-40';
+      dynamicHeight = 'h-32';
     }
     
     switch (level) {
-      case 0: return `w-48 ${dynamicHeight} text-lg`; // Central node
-      case 1: return `w-40 ${dynamicHeight} text-base`; // Main branches
-      case 2: return `w-32 ${dynamicHeight} text-sm`; // Secondary branches
-      default: return `w-28 ${dynamicHeight} text-xs`; // Leaf nodes
+      case 0: return `w-56 ${dynamicHeight} text-lg`; // Central node - largura aumentada
+      case 1: return `w-48 ${dynamicHeight} text-base`; // Main branches - largura aumentada
+      case 2: return `w-40 ${dynamicHeight} text-sm`; // Secondary branches - largura aumentada
+      default: return `w-36 ${dynamicHeight} text-xs`; // Leaf nodes - largura aumentada
     }
   };
 
@@ -284,8 +286,9 @@ export const CustomNode: React.FC<NodeProps> = ({ data, selected }) => {
       className={`
         ${getNodeSize()}
         rounded-xl cursor-pointer backdrop-blur-sm
-        flex items-center justify-center p-3
+        flex items-center justify-center p-4
         transition-all duration-200 relative
+        overflow-hidden
         ${selected ? 'ring-2 ring-purple-500 ring-offset-2' : ''}
       `}
       style={getNodeStyle()}
@@ -308,7 +311,7 @@ export const CustomNode: React.FC<NodeProps> = ({ data, selected }) => {
       />
 
       {/* Node Content */}
-      <div className="text-center flex items-center justify-center h-full px-2 relative">
+      <div className="text-center flex items-center justify-center h-full w-full px-3 py-2 relative overflow-hidden">
         {isEditing && isCentralNode ? (
           // Modo de edição - apenas para nó central
           <div className="flex items-center space-x-2 w-full">
@@ -343,17 +346,21 @@ export const CustomNode: React.FC<NodeProps> = ({ data, selected }) => {
             className={`
               font-semibold text-slate-800 dark:text-slate-100 leading-tight relative group
               ${level === 0 ? 'text-white' : ''}
-              ${label.length > 40 ? 'text-xs leading-tight' : ''}
-              ${label.length > 80 ? 'text-xs leading-snug' : ''}
-              break-words hyphens-auto
+              ${label.length > 20 ? 'text-xs leading-tight' : 'text-sm'}
+              ${label.length > 40 ? 'text-xs leading-snug' : ''}
+              break-words hyphens-auto text-center w-full
               ${isCentralNode ? 'cursor-pointer' : ''}
+              node-text-container text-ellipsis-multiline
             `}
             style={{
               wordBreak: 'break-word',
               overflowWrap: 'break-word',
               hyphens: 'auto',
+              WebkitLineClamp: level === 0 ? 4 : level === 1 ? 3 : 2,
+              lineHeight: '1.2'
             }}
             onClick={isCentralNode ? handleStartEdit : undefined}
+            title={label} // Tooltip para mostrar texto completo
           >
             {label}
             {/* Ícone de edição - apenas para nó central */}
